@@ -36,7 +36,7 @@
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
-  .app{ max-width: 1240px; margin: 0 auto; padding: 28px 24px 80px; }
+  .app{ max-width: 1800px; margin: 0 auto; padding: 28px 24px 80px; }
 
   /* ---------- HEADER ---------- */
   header.top{
@@ -107,14 +107,14 @@
     background: var(--surface); border:1px solid var(--line); border-radius:10px;
     overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
-  table{ width:100%; min-width:1080px; border-collapse: collapse; }
+  table{ width:100%; table-layout:auto; border-collapse: collapse; }
   thead th{
-    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
-    color: var(--text-dim); font-weight:600; padding:10px 12px;
+    text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.03em;
+    color: var(--text-dim); font-weight:600; padding:7px 6px;
     background: var(--surface-2); border-bottom:1px solid var(--line);
-    position: sticky; top:0;
+    position: sticky; top:0; white-space:nowrap;
   }
-  tbody td{ padding:10px 12px; border-bottom:1px solid var(--line-soft); font-size:12.5px; vertical-align:middle; }
+  tbody td{ padding:6px 6px; border-bottom:1px solid var(--line-soft); font-size:11.5px; vertical-align:middle; }
   thead th:last-child, tbody td:last-child{
     position: sticky; right:0; background: var(--surface-2);
     box-shadow: -8px 0 10px -8px rgba(0,0,0,0.5);
@@ -127,8 +127,8 @@
   tbody tr.selected{ background: var(--accent-dim); }
   tbody tr.selected td:first-child{ box-shadow: inset 3px 0 0 var(--accent); }
   .mono{ font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--text-muted); }
-  .nome-cell{ max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .end-cell{ max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--text-muted); }
+  .nome-cell{ max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .end-cell{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--text-muted); }
   .badge{
     display:inline-flex; align-items:center; justify-content:center;
     width:24px; height:20px; border-radius:5px; font-family:'IBM Plex Mono', monospace;
@@ -436,6 +436,14 @@ function calcAnx(prazo){
   return 'N';
 }
 function fmtDate(d){ return d.toLocaleDateString('pt-BR'); }
+// Corrige DIA que o Google Sheets converteu sozinho pra timestamp (ex: "2026-07-23T03:00:00.000Z")
+function formatDia(dia){
+  if(!dia) return dia;
+  const s = String(dia);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if(iso) return `${iso[3]}/${iso[2]}`;
+  return s;
+}
 
 let ajusteData = [];
 (function seed(){
@@ -626,7 +634,7 @@ function render(){
     const rows = [...campoData[reg]].sort((a,b)=>(a.dia+a.equipe).localeCompare(b.dia+b.equipe) || a.ordem-b.ordem);
     head.innerHTML = `<tr>
       <th style="width:56px;">Rota</th><th>Dia</th><th>Equipe</th><th>UC</th><th>OS</th><th>Ordem</th><th>Nome</th>
-      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Coordenadas</th><th style="width:130px;">Ação</th></tr>`;
+      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Coordenadas</th><th style="width:160px;">Ação</th></tr>`;
     body.innerHTML = rows.length ? rows.map(d=>`
       <tr>
         <td class="order-cell">
@@ -651,6 +659,7 @@ function render(){
         <td>
           <div class="acao-cell">
             <span class="feito-toggle ${d.feito?'done':''}" onclick="toggleFeito('${reg}','${d.id}')" title="Marcar feito"></span>
+            <button class="arquivar-btn" onclick="devolverParaAjuste('${reg}','${d.id}')" title="Devolver pra Ajuste de Ingressadas">↩</button>
             <button class="arquivar-btn" onclick="moverParaHistorico('${reg}','${d.id}')" title="Mover pro histórico">📦</button>
           </div>
         </td>
@@ -928,6 +937,24 @@ function generateHtmlRoute(){
   showToast(`✓ HTML da rota baixado — pode mandar pro celular da equipe`);
 }
 
+function devolverParaAjuste(reg, id){
+  const idx = campoData[reg].findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  const row = campoData[reg][idx];
+  campoData[reg].splice(idx,1);
+  ajusteData.push({
+    id: 'ajuste_' + row.os, uc: row.uc, os: row.os, tipo: row.tipo, nome: row.nome,
+    endereco: row.endereco, prazo: row.prazo, municipio: row.municipio, regiao: reg, anx: row.anx
+  });
+  showToast(`↩ OS ${row.os} devolvida pro Ajuste de Ingressadas`);
+  updateGauges();
+  render();
+  if(MODO_REAL){
+    apiPost('devolverParaAjuste', { regiao:reg, os:row.os })
+      .catch(err=>showToast('Erro ao devolver pra Ajuste: '+err.message));
+  }
+}
+
 function moverParaHistorico(reg, id){
   const idx = campoData[reg].findIndex(r=>r.id===id);
   if(idx===-1) return;
@@ -1049,8 +1076,8 @@ async function carregarDadosReais(){
       apiGet('ajuste'), apiGet('campo', {regiao:'sul'}), apiGet('campo', {regiao:'csul'}), apiGet('historico')
     ]);
     ajusteData = ajuste.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
-    campoData.sul  = sul.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
-    campoData.csul = csul.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
+    campoData.sul  = sul.map(d => ({ ...d, dia: formatDia(d.dia), prazo: parseISODate(d.prazo) }));
+    campoData.csul = csul.map(d => ({ ...d, dia: formatDia(d.dia), prazo: parseISODate(d.prazo) }));
     historico = hist; // arquivadoEm já vem como string, ok pra exibir
     populateFilters();
     updateGauges();
