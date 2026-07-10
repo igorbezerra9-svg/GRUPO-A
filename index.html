@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel DESUL Sul</title>
+<title>Painel Grupo A</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -250,7 +250,7 @@
     <div class="brand">
       <div class="brand-mark">DS</div>
       <div>
-        <h1>Painel DESUL Sul<span class="proto-tag">protótipo · dados fictícios</span></h1>
+        <h1>Painel Grupo A<span class="proto-tag">protótipo · dados fictícios</span></h1>
         <div class="brand-sub">Juazeiro do Norte · Milagres · Campos Sales</div>
       </div>
     </div>
@@ -752,7 +752,7 @@ function generatePdf(){
         </tr>`).join('')}
       </tbody>
     </table>
-    <footer>Gerado em ${new Date().toLocaleString('pt-BR')} — Painel DESUL Sul</footer>
+    <footer>Gerado em ${new Date().toLocaleString('pt-BR')} — Painel Grupo A</footer>
     <script>window.onload = () => window.print();<\/script>
   </body></html>`;
   win.document.write(html);
@@ -924,7 +924,7 @@ function generateHtmlRoute(){
     <h1>Rota — Equipe ${equipe}</h1>
     <div class="sub">Região ${regLabel} · Dia ${dia} · ${rows.length} OS · ${comCoord} com localização</div>
     ${cards}
-    <footer>Toque num card com localização pra abrir o Maps e navegar até o endereço.<br>Painel DESUL Sul</footer>
+    <footer>Toque num card com localização pra abrir o Maps e navegar até o endereço.<br>Painel Grupo A</footer>
   </body></html>`;
 
   const blob = new Blob([html], {type:'text/html'});
