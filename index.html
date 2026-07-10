@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel DESUL Sul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg: #14171a;
+    --surface: #1c2024;
+    --surface-2: #22262b;
+    --line: #2b3036;
+    --line-soft: #23272c;
+    --text: #edeef0;
+    --text-muted: #8b939b;
+    --text-dim: #5c636b;
+    --accent: #e8983a;
+    --accent-dim: #4a3a22;
+    --a-red: #ff5257;
+    --a-red-bg: #3a1e1f;
+    --a-green: #3ed492;
+    --a-green-bg: #16302a;
+    --a-amber: #f0ac3f;
+    --a-amber-bg: #3a2c16;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app{ max-width: 1240px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  /* ---------- HEADER ---------- */
+  header.top{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom: 22px; flex-wrap: wrap; gap: 14px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{
+    width: 34px; height: 34px; border-radius: 7px;
+    background: linear-gradient(155deg, var(--accent), #b8661c);
+    display:flex; align-items:center; justify-content:center;
+    font-family: 'Space Grotesk', sans-serif; font-weight:700; font-size:15px; color:#1a1206;
+    flex-shrink:0;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:22px;
+    margin:0; letter-spacing:-0.01em;
+  }
+  .brand-sub{ font-size:12px; color: var(--text-muted); margin-top:2px; }
+  .top-meta{ text-align:right; font-size:12px; color: var(--text-dim); font-family:'IBM Plex Mono', monospace; }
+
+  /* ---------- LOAD GAUGE (signature element) ---------- */
+  .gauge-row{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:22px; }
+  .gauge-card{
+    background: var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px;
+  }
+  .gauge-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .gauge-label{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13px; letter-spacing:.02em; }
+  .gauge-total{ font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--text-muted); }
+  .gauge-bar{ height:10px; border-radius:5px; overflow:hidden; display:flex; background: var(--line-soft); }
+  .gauge-seg{ height:100%; transition: width .3s ease; }
+  .gauge-legend{ display:flex; gap:16px; margin-top:9px; font-size:11px; color: var(--text-muted); }
+  .gauge-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .dot{ width:7px; height:7px; border-radius:2px; display:inline-block; }
+
+  /* ---------- TABS ---------- */
+  .tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+  .tab{
+    padding:9px 16px; font-size:13px; font-weight:500; color: var(--text-muted);
+    cursor:pointer; border-bottom:2px solid transparent; user-select:none;
+    font-family:'Space Grotesk', sans-serif;
+  }
+  .tab.active{ color: var(--text); border-bottom-color: var(--accent); }
+  .tab .count{ color: var(--text-dim); font-family:'IBM Plex Mono', monospace; font-size:11px; margin-left:5px; }
+  .tab.active .count{ color: var(--accent); }
+
+  /* ---------- FILTER BAR ---------- */
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+  .filters select, .filters input[type=text]{
+    background: var(--surface); border:1px solid var(--line); color: var(--text);
+    padding:7px 10px; border-radius:7px; font-size:12.5px; font-family:'Inter', sans-serif;
+    outline:none;
+  }
+  .filters select:focus, .filters input:focus{ border-color: var(--accent); }
+  .filters input[type=text]{ min-width:200px; }
+  .chip-filters{ display:flex; gap:6px; margin-left:auto; }
+  .chip{
+    padding:5px 11px; border-radius:20px; border:1px solid var(--line); font-size:11.5px;
+    cursor:pointer; color: var(--text-muted); user-select:none; font-family:'IBM Plex Mono', monospace;
+  }
+  .chip.on-a{ border-color: var(--a-red); color: var(--a-red); background: var(--a-red-bg); }
+  .chip.on-n{ border-color: var(--a-green); color: var(--a-green); background: var(--a-green-bg); }
+  .chip.on-x{ border-color: var(--a-amber); color: var(--a-amber); background: var(--a-amber-bg); }
+
+  /* ---------- TABLE ---------- */
+  .table-wrap{
+    background: var(--surface); border:1px solid var(--line); border-radius:10px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  table{ width:100%; min-width:1080px; border-collapse: collapse; }
+  thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+    color: var(--text-dim); font-weight:600; padding:10px 12px;
+    background: var(--surface-2); border-bottom:1px solid var(--line);
+    position: sticky; top:0;
+  }
+  tbody td{ padding:10px 12px; border-bottom:1px solid var(--line-soft); font-size:12.5px; vertical-align:middle; }
+  thead th:last-child, tbody td:last-child{
+    position: sticky; right:0; background: var(--surface-2);
+    box-shadow: -8px 0 10px -8px rgba(0,0,0,0.5);
+  }
+  thead th:last-child{ z-index:3; }
+  tbody td:last-child{ z-index:1; background: var(--surface); }
+  tbody tr:hover td:last-child{ background: #20242a; }
+  tbody tr.selected td:last-child{ background: var(--accent-dim); }
+  tbody tr:hover{ background: rgba(255,255,255,0.02); }
+  tbody tr.selected{ background: var(--accent-dim); }
+  tbody tr.selected td:first-child{ box-shadow: inset 3px 0 0 var(--accent); }
+  .mono{ font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--text-muted); }
+  .nome-cell{ max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .end-cell{ max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--text-muted); }
+  .badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:24px; height:20px; border-radius:5px; font-family:'IBM Plex Mono', monospace;
+    font-size:11px; font-weight:600;
+  }
+  .badge-a{ background: var(--a-red-bg); color: var(--a-red); }
+  .badge-n{ background: var(--a-green-bg); color: var(--a-green); }
+  .badge-x{ background: var(--a-amber-bg); color: var(--a-amber); }
+  input[type=checkbox]{
+    width:15px; height:15px; accent-color: var(--accent); cursor:pointer;
+  }
+  .feito-toggle{
+    width:15px; height:15px; border-radius:4px; border:1.5px solid var(--line);
+    cursor:pointer; display:inline-block;
+  }
+  .feito-toggle.done{ background: var(--a-green); border-color: var(--a-green); }
+
+  /* ---------- ACTION BAR ---------- */
+  .action-bar{
+    position: sticky; bottom:18px; margin-top:16px;
+    background: var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .action-bar.hidden{ display:none; }
+  .action-bar .count-txt{ font-size:13px; color: var(--text-muted); }
+  .action-bar .count-txt b{ color: var(--text); font-family:'IBM Plex Mono', monospace; }
+  .btn{
+    background: var(--accent); color:#1a1206; border:none; padding:9px 18px;
+    border-radius:7px; font-size:13px; font-weight:600; cursor:pointer;
+    font-family:'Space Grotesk', sans-serif;
+  }
+  .btn:hover{ filter: brightness(1.08); }
+  .btn.ghost{ background:transparent; border:1px solid var(--line); color: var(--text-muted); }
+
+  /* ---------- MODAL ---------- */
+  .overlay{
+    position:fixed; inset:0; background: rgba(0,0,0,0.55); display:flex;
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .overlay.hidden{ display:none; }
+  .modal{
+    background: var(--surface); border:1px solid var(--line); border-radius:12px;
+    width:360px; padding:22px;
+  }
+  .modal h3{ font-family:'Space Grotesk', sans-serif; margin:0 0 4px; font-size:16px; }
+  .modal p{ color: var(--text-muted); font-size:12.5px; margin:0 0 16px; }
+  .modal label{ display:block; font-size:11.5px; color: var(--text-muted); margin-bottom:5px; margin-top:12px; }
+  .modal input, .modal select{
+    width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text);
+    padding:9px 10px; border-radius:7px; font-size:13px; outline:none;
+  }
+  .modal-actions{ display:flex; gap:8px; margin-top:20px; justify-content:flex-end; }
+
+  .empty{ text-align:center; padding:50px 20px; color: var(--text-dim); }
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background: var(--a-green-bg); color: var(--a-green); border:1px solid var(--a-green);
+    padding:10px 18px; border-radius:8px; font-size:13px; z-index:60; opacity:0; transition:opacity .25s;
+    font-family:'Space Grotesk', sans-serif; font-weight:500;
+  }
+  .toast.show{ opacity:1; }
+
+  .order-cell{ display:flex; align-items:center; gap:6px; }
+  .order-num{ font-family:'IBM Plex Mono', monospace; color: var(--text-dim); width:16px; text-align:right; }
+  .order-arrows{ display:flex; flex-direction:column; gap:1px; }
+  .order-arrows button{
+    background: var(--surface-2); border:1px solid var(--line); color: var(--text-muted);
+    width:18px; height:14px; font-size:8px; line-height:1; cursor:pointer; border-radius:3px; padding:0;
+  }
+  .order-arrows button:hover{ color: var(--accent); border-color: var(--accent); }
+  .hidden{ display:none !important; }
+
+  .gps-btn{
+    background: var(--surface-2); border:1px dashed var(--line); color: var(--accent);
+    font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; font-family:'IBM Plex Mono', monospace;
+  }
+  .gps-btn:hover{ border-color: var(--accent); background: var(--accent-dim); }
+  .gps-btn.loading{ color: var(--text-dim); border-color: var(--text-dim); cursor:wait; }
+  .acao-cell{ display:flex; align-items:center; gap:8px; }
+  .arquivar-btn{
+    background: var(--surface-2); border:1px solid var(--line); color: var(--text-muted);
+    width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  .arquivar-btn:hover{ border-color: var(--accent); color: var(--accent); }
+
+  .map-modal{
+    background: var(--surface); border:1px solid var(--line); border-radius:12px;
+    width:min(760px, 92vw); padding:18px; max-height:88vh; display:flex; flex-direction:column;
+  }
+  .map-modal h3{ font-family:'Space Grotesk', sans-serif; margin:0 0 2px; font-size:16px; }
+  .map-modal .sub{ font-size:12px; color: var(--text-muted); margin-bottom:12px; }
+  #routeMap{ height: 380px; border-radius:9px; overflow:hidden; border:1px solid var(--line); }
+  .map-legend{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .missing-list{ font-size:11.5px; color: var(--text-muted); margin-top:6px; }
+  .missing-list b{ color: var(--a-amber); }
+  .leaflet-popup-content-wrapper{ background: var(--surface-2); color: var(--text); border-radius:8px; }
+  .leaflet-popup-content{ font-family:'Inter', sans-serif; font-size:12.5px; }
+  .leaflet-popup-tip{ background: var(--surface-2); }
+  .pin-num{
+    background: var(--accent); color:#1a1206; font-family:'Space Grotesk', sans-serif; font-weight:700;
+    width:26px; height:26px; border-radius:50% 50% 50% 0; transform: rotate(-45deg);
+    display:flex; align-items:center; justify-content:center; font-size:12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4); border:2px solid #1a1206;
+  }
+  .pin-num span{ transform: rotate(45deg); }
+
+  .proto-tag{
+    display:inline-block; font-size:10px; color: var(--text-dim); border:1px solid var(--line);
+    padding:2px 7px; border-radius:20px; margin-left:8px; font-family:'IBM Plex Mono', monospace;
+    vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark">DS</div>
+      <div>
+        <h1>Painel DESUL Sul<span class="proto-tag">protótipo · dados fictícios</span></h1>
+        <div class="brand-sub">Juazeiro do Norte · Milagres · Campos Sales</div>
+      </div>
+    </div>
+    <div class="top-meta">
+      sex, 10 jul 2026 · 14:32<br>
+      última sincronização: RASCUNHO há 22min
+    </div>
+  </header>
+
+  <div class="gauge-row">
+    <div class="gauge-card">
+      <div class="gauge-top">
+        <span class="gauge-label">Carga · SUL</span>
+        <span class="gauge-total" id="gaugeTotalSul">-- OS</span>
+      </div>
+      <div class="gauge-bar" id="gaugeSul"></div>
+      <div class="gauge-legend">
+        <span><i class="dot" style="background:var(--a-red)"></i>Atrasada</span>
+        <span><i class="dot" style="background:var(--a-amber)"></i>Atenção</span>
+        <span><i class="dot" style="background:var(--a-green)"></i>No prazo</span>
+      </div>
+    </div>
+    <div class="gauge-card">
+      <div class="gauge-top">
+        <span class="gauge-label">Carga · C.SUL</span>
+        <span class="gauge-total" id="gaugeTotalCsul">-- OS</span>
+      </div>
+      <div class="gauge-bar" id="gaugeCsul"></div>
+      <div class="gauge-legend">
+        <span><i class="dot" style="background:var(--a-red)"></i>Atrasada</span>
+        <span><i class="dot" style="background:var(--a-amber)"></i>Atenção</span>
+        <span><i class="dot" style="background:var(--a-green)"></i>No prazo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="ajuste">Ajuste de Ingressadas <span class="count" id="cAjuste"></span></div>
+    <div class="tab" data-tab="sul">Campo · Sul <span class="count" id="cSul"></span></div>
+    <div class="tab" data-tab="csul">Campo · C.Sul <span class="count" id="cCsul"></span></div>
+    <div class="tab" data-tab="historico">Histórico <span class="count" id="cHistorico"></span></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters" id="filterBar">
+    <select id="fMunicipio"><option value="">Município (todos)</option></select>
+    <select id="fTipo"><option value="">Tipo de serviço (todos)</option></select>
+    <input type="text" id="fBusca" placeholder="Buscar OS, UC ou nome…">
+    <div class="chip-filters">
+      <div class="chip" data-anx="A" onclick="toggleChip(this)">A</div>
+      <div class="chip" data-anx="X" onclick="toggleChip(this)">X</div>
+      <div class="chip" data-anx="N" onclick="toggleChip(this)">N</div>
+    </div>
+  </div>
+
+  <!-- CAMPO TOOLBAR (rota / pdf) -->
+  <div class="filters hidden" id="campoBar">
+    <select id="fGrupo"><option value="">Selecione dia + equipe…</option></select>
+    <button class="btn ghost" onclick="generatePdf()">🖨 Gerar PDF da Rota</button>
+    <button class="btn ghost" onclick="openMapModal()">🗺 Ver Mapa da Rota</button>
+    <button class="btn ghost" onclick="generateHtmlRoute()">📱 Gerar HTML pra Equipe</button>
+    <span style="color:var(--text-dim); font-size:11.5px; margin-left:6px;">use ▲▼ na tabela pra definir a ordem de visita</span>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table>
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none;">Nenhuma OS encontrada com esses filtros.</div>
+  </div>
+
+  <div class="action-bar hidden" id="actionBar">
+    <div class="count-txt"><b id="selCount">0</b> OS selecionadas</div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn ghost" onclick="clearSelection()">Limpar seleção</button>
+      <button class="btn" id="launchBtn" onclick="openModal()">Lançar pra Campo →</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h3>Lançar pra Campo</h3>
+    <p id="modalSub">3 OS selecionadas serão enviadas.</p>
+    <label>Dia</label>
+    <input type="text" id="mDia" placeholder="ex: 23/07">
+    <label>Equipe</label>
+    <input type="text" id="mEquipe" placeholder="ex: DF">
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="confirmLaunch()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MAP MODAL -->
+<div class="overlay hidden" id="mapOverlay">
+  <div class="map-modal">
+    <h3 id="mapTitle">Mapa da Rota</h3>
+    <div class="sub" id="mapSub"></div>
+    <div id="routeMap"></div>
+    <div class="map-legend">
+      <div class="missing-list" id="missingList"></div>
+      <button class="btn ghost" onclick="closeMapModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PONTO MODAL (colar coordenada/link informado pela equipe) -->
+<div class="overlay hidden" id="pontoOverlay">
+  <div class="modal">
+    <h3>Salvar ponto da equipe</h3>
+    <p id="pontoSub">Cole abaixo o que a equipe te mandou.</p>
+    <label>Link do Google Maps ou coordenada (lat, lng)</label>
+    <input type="text" id="pontoInput" placeholder="ex: -7.2133, -39.3153 ou https://maps.google.com/?q=...">
+    <div id="pontoErro" style="color:var(--a-red); font-size:11.5px; margin-top:6px; display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closePontoModal()">Cancelar</button>
+      <button class="btn" onclick="confirmPonto()">Salvar ponto</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIG ============
+   Cole aqui a URL do seu Web App depois de publicar no Apps Script
+   (Implantar → Nova implantação → Web App → "Qualquer pessoa com o link").
+   Enquanto ficar vazio, o site roda em MODO DEMONSTRAÇÃO com dados fictícios. */
+const CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycby6JTz4EcHf70QPQViR9RoZ9ZktNWsT0CaYh6z4LkMerL4Qrk270j7K4IuEbjlujE3NXQ/exec'
+};
+const MODO_REAL = !!CONFIG.API_URL;
+
+async function apiGet(action, params={}){
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch(`${CONFIG.API_URL}?${qs}`);
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json.data;
+}
+async function apiPost(action, body={}){
+  // text/plain evita o preflight CORS que o Apps Script Web App não responde
+  const res = await fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action, ...body })
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+function parseISODate(iso){ return iso ? new Date(iso) : null; }
+
+/* ============ MOCK DATA (estrutura idêntica à planilha real) ============ */
+const TIPOS = ['CORTE POR FALTA DE PAGAMENTO','RELIGAÇÃO NORMAL URBANA','INSPECAO UC CORTADA I30',
+  'VISTORIA DA UC','COLHER LEITURA','SUBST. DE EQUIPAMENTOS DE MEDIÇÃO','AFERIÇÃO DE MEDIDOR',
+  'RESSERVIÇO','LIGAÇÃO NOVA SIMULTÂNEA','TELEMEDIÇÃO MANUTENÇÃO'];
+const MUN_SUL = ['JUAZEIRO DO NORTE','CRATO','MILAGRES','BARBALHA','BREJO SANTO'];
+const MUN_CSUL = ['ICO','IGUATU','TAUA','SENADOR POMPEU'];
+const NOMES = ['MARIA DAS GRAÇAS SILVA','JOÃO PEDRO OLIVEIRA','FRANCISCA ALVES SOUZA','ANTONIO CARLOS LIMA',
+  'JOSEFA RODRIGUES','RAIMUNDO NONATO FERREIRA','ALDENIZA PEREIRA COSTA','SEBASTIÃO GOMES DIAS',
+  'LUCIANA BEZERRA MACEDO','PEDRO HENRIQUE SANTOS'];
+const ENDERECOS = ['Rua José de Alencar 340','Av. Padre Cícero 1220','Rua da Matriz s/n','Travessa Boa Vista 45',
+  'Rua Coronel Antônio Luiz 88','Sítio Barro Vermelho','Av. Leão Sampaio 500','Rua Floriano Peixoto 12'];
+
+function rndItem(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function rndDate(minDays,maxDays){
+  const d = new Date();
+  d.setDate(d.getDate() + Math.floor(Math.random()*(maxDays-minDays))+minDays);
+  return d;
+}
+function calcAnx(prazo){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dias = Math.floor((prazo-hoje)/(1000*60*60*24));
+  if(dias < 0) return 'A';
+  if(dias <= 5) return 'X';
+  return 'N';
+}
+function fmtDate(d){ return d.toLocaleDateString('pt-BR'); }
+
+let ajusteData = [];
+(function seed(){
+  let osBase = 561000;
+  for(let i=0;i<75;i++){
+    const isCsul = Math.random() < 0.4;
+    const municipio = isCsul ? rndItem(MUN_CSUL) : rndItem(MUN_SUL);
+    const prazo = rndDate(-8, 25);
+    ajusteData.push({
+      id: 'row'+i,
+      uc: 9000000 + Math.floor(Math.random()*90000),
+      os: osBase + i*37,
+      tipo: rndItem(TIPOS),
+      nome: rndItem(NOMES),
+      endereco: rndItem(ENDERECOS),
+      prazo: prazo,
+      municipio: municipio,
+      regiao: isCsul ? 'csul' : 'sul',
+      anx: calcAnx(prazo)
+    });
+  }
+})();
+
+let campoData = { sul: [], csul: [] };
+let historico = [];
+function seedHistorico(){
+  const hoje = new Date();
+  const exemplos = [
+    { reg:'sul', dia:'08/07', equipe:'DF', municipio:'JUAZEIRO DO NORTE', tipo:'CORTE POR FALTA DE PAGAMENTO', diasAtras:2 },
+    { reg:'sul', dia:'07/07', equipe:'JC', municipio:'MILAGRES', tipo:'RELIGAÇÃO NORMAL URBANA', diasAtras:3 },
+    { reg:'csul', dia:'08/07', equipe:'MC', municipio:'IGUATU', tipo:'COLHER LEITURA', diasAtras:2 },
+  ];
+  exemplos.forEach((e,i)=>{
+    const arquivadoEm = new Date(hoje); arquivadoEm.setDate(arquivadoEm.getDate()-e.diasAtras);
+    const prazo = rndDate(-10,-2);
+    historico.push({
+      id:'hist'+i, dia:e.dia, equipe:e.equipe, uc:9000000+Math.floor(Math.random()*90000),
+      os:558000+i*7, tipo:e.tipo, nome:rndItem(NOMES), endereco:rndItem(ENDERECOS),
+      prazo, municipio:e.municipio, anx:'N', feito:true, ordem:1,
+      lat:null, lng:null, origem:e.reg, arquivadoEm: arquivadoEm.toISOString()
+    });
+  });
+}
+const MUN_COORDS = {
+  'JUAZEIRO DO NORTE': [-7.2133,-39.3153], 'CRATO': [-7.2342,-39.4092], 'MILAGRES': [-7.2703,-38.9391],
+  'BARBALHA': [-7.2997,-39.2967], 'BREJO SANTO': [-7.4919,-38.9856],
+  'ICO': [-6.4025,-38.8556], 'IGUATU': [-6.3597,-39.2986], 'TAUA': [-6.0028,-40.2967], 'SENADOR POMPEU': [-5.5900,-39.3708]
+};
+function jitterCoord(base){ return [base[0] + (Math.random()-0.5)*0.05, base[1] + (Math.random()-0.5)*0.05]; }
+(function seedCampo(){
+  let osBase = 559000;
+  const gruposSul = [ {dia:'10/07', equipe:'DF'}, {dia:'10/07', equipe:'JC'}, {dia:'11/07', equipe:'DF'} ];
+  const gruposCsul = [ {dia:'10/07', equipe:'MC'}, {dia:'11/07', equipe:'RV'} ];
+  let idc = 0;
+  gruposSul.forEach(g=>{
+    const n = 3 + Math.floor(Math.random()*4);
+    for(let i=0;i<n;i++){
+      const prazo = rndDate(-3, 15);
+      const municipio = rndItem(MUN_SUL);
+      const temCoord = Math.random() < 0.6;
+      const [lat,lng] = temCoord ? jitterCoord(MUN_COORDS[municipio]) : [null,null];
+      campoData.sul.push({
+        id:'seedsul'+(idc++), dia:g.dia, equipe:g.equipe, uc: 9000000+Math.floor(Math.random()*90000),
+        os: osBase+idc*11, tipo: rndItem(TIPOS), nome: rndItem(NOMES), endereco: rndItem(ENDERECOS),
+        prazo, municipio, anx: calcAnx(prazo), feito: Math.random()<0.3, ordem: i+1, lat, lng
+      });
+    }
+  });
+  gruposCsul.forEach(g=>{
+    const n = 3 + Math.floor(Math.random()*4);
+    for(let i=0;i<n;i++){
+      const prazo = rndDate(-3, 15);
+      const municipio = rndItem(MUN_CSUL);
+      const temCoord = Math.random() < 0.6;
+      const [lat,lng] = temCoord ? jitterCoord(MUN_COORDS[municipio]) : [null,null];
+      campoData.csul.push({
+        id:'seedcsul'+(idc++), dia:g.dia, equipe:g.equipe, uc: 9000000+Math.floor(Math.random()*90000),
+        os: osBase+300+idc*13, tipo: rndItem(TIPOS), nome: rndItem(NOMES), endereco: rndItem(ENDERECOS),
+        prazo, municipio, anx: calcAnx(prazo), feito: Math.random()<0.3, ordem: i+1, lat, lng
+      });
+    }
+  });
+})();
+
+let state = { tab:'ajuste', anxFilter:new Set(), municipio:'', tipo:'', busca:'', selected:new Set() };
+
+/* ============ RENDER ============ */
+function populateFilters(){
+  const munSel = document.getElementById('fMunicipio');
+  const tipoSel = document.getElementById('fTipo');
+  const muns = [...new Set(ajusteData.map(d=>d.municipio))].sort();
+  muns.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; munSel.appendChild(o); });
+  TIPOS.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; tipoSel.appendChild(o); });
+}
+
+function toggleChip(el){
+  const v = el.dataset.anx;
+  if(state.anxFilter.has(v)){ state.anxFilter.delete(v); el.classList.remove('on-'+v.toLowerCase()); }
+  else{ state.anxFilter.add(v); el.classList.add('on-'+v.toLowerCase()); }
+  render();
+}
+
+function badgeHtml(anx){
+  const cls = anx==='A'?'badge-a':anx==='N'?'badge-n':'badge-x';
+  return `<span class="badge ${cls}">${anx}</span>`;
+}
+
+function updateGauges(){
+  ['sul','csul'].forEach(reg=>{
+    const rows = ajusteData.filter(d=>d.regiao===reg);
+    const a = rows.filter(r=>r.anx==='A').length;
+    const x = rows.filter(r=>r.anx==='X').length;
+    const n = rows.filter(r=>r.anx==='N').length;
+    const total = rows.length || 1;
+    const bar = document.getElementById(reg==='sul'?'gaugeSul':'gaugeCsul');
+    bar.innerHTML = `
+      <div class="gauge-seg" style="width:${a/total*100}%;background:var(--a-red)"></div>
+      <div class="gauge-seg" style="width:${x/total*100}%;background:var(--a-amber)"></div>
+      <div class="gauge-seg" style="width:${n/total*100}%;background:var(--a-green)"></div>`;
+    document.getElementById(reg==='sul'?'gaugeTotalSul':'gaugeTotalCsul').textContent = `${rows.length} OS`;
+  });
+}
+
+function filteredGeneric(list){
+  return list.filter(d=>{
+    if(state.municipio && d.municipio !== state.municipio) return false;
+    if(state.tipo && d.tipo !== state.tipo) return false;
+    if(state.anxFilter.size && !state.anxFilter.has(d.anx)) return false;
+    if(state.busca){
+      const q = state.busca.toLowerCase();
+      if(!(String(d.os).includes(q) || String(d.uc).includes(q) || d.nome.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+}
+function filteredAjuste(){ return filteredGeneric(ajusteData); }
+
+function render(){
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  if(state.tab==='ajuste'){
+    const rows = filteredAjuste();
+    head.innerHTML = `<tr>
+      <th style="width:34px;"></th><th>UC</th><th>OS</th><th>Tipo</th><th>Nome</th>
+      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th></tr>`;
+    body.innerHTML = rows.map(d=>`
+      <tr class="${state.selected.has(d.id)?'selected':''}">
+        <td><input type="checkbox" ${state.selected.has(d.id)?'checked':''} onchange="toggleSelect('${d.id}')"></td>
+        <td class="mono">${d.uc}</td>
+        <td class="mono">${d.os}</td>
+        <td>${d.tipo}</td>
+        <td class="nome-cell">${d.nome}</td>
+        <td class="end-cell">${d.endereco}</td>
+        <td class="mono">${fmtDate(d.prazo)}</td>
+        <td>${d.municipio}</td>
+        <td>${badgeHtml(d.anx)}</td>
+      </tr>`).join('');
+    empty.style.display = rows.length ? 'none':'block';
+    document.getElementById('actionBar').classList.toggle('hidden', state.selected.size===0);
+    document.getElementById('selCount').textContent = state.selected.size;
+  } else if(state.tab==='historico'){
+    const rows = filteredGeneric(historico).sort((a,b)=> new Date(b.arquivadoEm) - new Date(a.arquivadoEm));
+    head.innerHTML = `<tr>
+      <th>Região</th><th>Dia</th><th>Equipe</th><th>UC</th><th>OS</th><th>Tipo</th><th>Nome</th>
+      <th>Endereço</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Arquivado em</th><th style="width:70px;">Ação</th></tr>`;
+    body.innerHTML = rows.length ? rows.map(d=>`
+      <tr>
+        <td class="mono">${d.origem==='sul'?'SUL':'C.SUL'}</td>
+        <td class="mono">${d.dia}</td>
+        <td class="mono">${d.equipe}</td>
+        <td class="mono">${d.uc}</td>
+        <td class="mono">${d.os}</td>
+        <td>${d.tipo}</td>
+        <td class="nome-cell">${d.nome}</td>
+        <td class="end-cell">${d.endereco}</td>
+        <td>${d.municipio}</td>
+        <td>${badgeHtml(d.anx)}</td>
+        <td class="mono">${new Date(d.arquivadoEm).toLocaleDateString('pt-BR')}</td>
+        <td><button class="gps-btn" onclick="restaurar('${d.id}')">↩ Restaurar</button></td>
+      </tr>`).join('') : '';
+    empty.style.display = rows.length ? 'none':'block';
+    if(!rows.length) empty.textContent = 'Nenhuma OS arquivada ainda.';
+    document.getElementById('actionBar').classList.add('hidden');
+  } else {
+    const reg = state.tab; // sul | csul
+    const rows = [...campoData[reg]].sort((a,b)=>(a.dia+a.equipe).localeCompare(b.dia+b.equipe) || a.ordem-b.ordem);
+    head.innerHTML = `<tr>
+      <th style="width:56px;">Rota</th><th>Dia</th><th>Equipe</th><th>UC</th><th>OS</th><th>Ordem</th><th>Nome</th>
+      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Coordenadas</th><th style="width:130px;">Ação</th></tr>`;
+    body.innerHTML = rows.length ? rows.map(d=>`
+      <tr>
+        <td class="order-cell">
+          <span class="order-num">${d.ordem}</span>
+          <span class="order-arrows">
+            <button onclick="moveOrder('${reg}','${d.id}',-1)">▲</button>
+            <button onclick="moveOrder('${reg}','${d.id}',1)">▼</button>
+          </span>
+        </td>
+        <td class="mono">${d.dia}</td>
+        <td class="mono">${d.equipe}</td>
+        <td class="mono">${d.uc}</td>
+        <td class="mono">${d.os}</td>
+        <td>${d.tipo}</td>
+        <td class="nome-cell">${d.nome}</td>
+        <td class="end-cell">${d.endereco}</td>
+        <td class="mono">${fmtDate(d.prazo)}</td>
+        <td>${d.municipio}</td>
+        <td>${badgeHtml(d.anx)}</td>
+        <td>${d.lat ? `<span class="mono" style="color:var(--a-green)">${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</span>` :
+              `<button class="gps-btn" onclick="abrirModalPonto('${reg}','${d.id}')">📍 Colar ponto</button>`}</td>
+        <td>
+          <div class="acao-cell">
+            <span class="feito-toggle ${d.feito?'done':''}" onclick="toggleFeito('${reg}','${d.id}')" title="Marcar feito"></span>
+            <button class="arquivar-btn" onclick="moverParaHistorico('${reg}','${d.id}')" title="Mover pro histórico">📦</button>
+          </div>
+        </td>
+      </tr>`).join('') : '';
+    empty.style.display = rows.length ? 'none':'block';
+    if(!rows.length) empty.textContent = 'Nenhuma OS lançada ainda pra essa região.';
+    document.getElementById('actionBar').classList.add('hidden');
+    populateGrupoDropdown(reg);
+  }
+
+  document.getElementById('cAjuste').textContent = ajusteData.length;
+  document.getElementById('cSul').textContent = campoData.sul.length;
+  document.getElementById('cCsul').textContent = campoData.csul.length;
+  document.getElementById('cHistorico').textContent = historico.length;
+}
+
+function moveOrder(reg,id,dir){
+  const rows = campoData[reg];
+  const row = rows.find(r=>r.id===id);
+  const grupo = rows.filter(r=>r.dia===row.dia && r.equipe===row.equipe).sort((a,b)=>a.ordem-b.ordem);
+  const pos = grupo.findIndex(r=>r.id===id);
+  const swapPos = pos + dir;
+  if(swapPos < 0 || swapPos >= grupo.length) return;
+  const tmp = grupo[pos].ordem;
+  grupo[pos].ordem = grupo[swapPos].ordem;
+  grupo[swapPos].ordem = tmp;
+  render();
+  if(MODO_REAL){
+    apiPost('salvarOrdem', { regiao:reg, ordens: grupo.map(r=>({os:r.os, ordem:r.ordem})) })
+      .catch(err=>showToast('Erro ao salvar ordem: '+err.message));
+  }
+}
+
+function populateGrupoDropdown(reg){
+  const sel = document.getElementById('fGrupo');
+  const grupos = [...new Set(campoData[reg].map(r=>r.dia+'||'+r.equipe))];
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Selecione dia + equipe…</option>' + grupos.map(g=>{
+    const [dia,equipe] = g.split('||');
+    const n = campoData[reg].filter(r=>r.dia===dia && r.equipe===equipe).length;
+    return `<option value="${g}">${dia} · Equipe ${equipe} (${n} OS)</option>`;
+  }).join('');
+  if(grupos.includes(current)) sel.value = current;
+}
+
+function generatePdf(){
+  const reg = state.tab;
+  const sel = document.getElementById('fGrupo').value;
+  if(!sel){ showToast('Selecione um dia + equipe primeiro'); return; }
+  const [dia,equipe] = sel.split('||');
+  const rows = campoData[reg].filter(r=>r.dia===dia && r.equipe===equipe).sort((a,b)=>a.ordem-b.ordem);
+  if(!rows.length) return;
+
+  const win = window.open('', '_blank');
+  const regLabel = reg==='sul' ? 'SUL' : 'C.SUL';
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Rota ${dia} - Equipe ${equipe}</title>
+  <style>
+    @page{ margin: 16mm; }
+    body{ font-family: Arial, sans-serif; color:#111; margin:0; }
+    h1{ font-size:18px; margin:0 0 2px; }
+    .sub{ font-size:12px; color:#555; margin-bottom:18px; }
+    table{ width:100%; border-collapse:collapse; }
+    th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:#555;
+        border-bottom:1.5px solid #111; padding:6px 6px; }
+    td{ font-size:12px; border-bottom:1px solid #ddd; padding:8px 6px; vertical-align:top; }
+    .num{ font-weight:700; width:22px; }
+    .chk{ width:20px; }
+    .chk-box{ width:14px; height:14px; border:1.5px solid #111; display:inline-block; }
+    .anx{ font-weight:700; }
+    footer{ margin-top:24px; font-size:10px; color:#888; }
+  </style></head><body>
+    <h1>Rota de Campo — Equipe ${equipe}</h1>
+    <div class="sub">Região ${regLabel} · Dia ${dia} · ${rows.length} ordens de serviço</div>
+    <table>
+      <thead><tr><th class="num">#</th><th class="chk">✓</th><th>OS</th><th>UC</th><th>Tipo de Serviço</th>
+      <th>Cliente</th><th>Endereço</th><th>Prazo</th><th>A/N/X</th><th>Mapa</th></tr></thead>
+      <tbody>
+        ${rows.map((d,i)=>`<tr>
+          <td class="num">${i+1}</td>
+          <td class="chk"><span class="chk-box"></span></td>
+          <td>${d.os}</td>
+          <td>${d.uc}</td>
+          <td>${d.tipo}</td>
+          <td>${d.nome}</td>
+          <td>${d.endereco}</td>
+          <td>${fmtDate(d.prazo)}</td>
+          <td class="anx">${d.anx}</td>
+          <td>${d.lat ? `<a href="https://maps.google.com/?q=${d.lat},${d.lng}">abrir</a>` : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <footer>Gerado em ${new Date().toLocaleString('pt-BR')} — Painel DESUL Sul</footer>
+    <script>window.onload = () => window.print();<\/script>
+  </body></html>`;
+  win.document.write(html);
+  win.document.close();
+}
+
+let routeMapInstance = null;
+
+function openMapModal(){
+  const reg = state.tab;
+  const sel = document.getElementById('fGrupo').value;
+  if(!sel){ showToast('Selecione um dia + equipe primeiro'); return; }
+  const [dia,equipe] = sel.split('||');
+  const rows = campoData[reg].filter(r=>r.dia===dia && r.equipe===equipe).sort((a,b)=>a.ordem-b.ordem);
+  if(!rows.length) return;
+
+  document.getElementById('mapTitle').textContent = `Rota — Equipe ${equipe}`;
+  const comCoord = rows.filter(r=>r.lat);
+  const semCoord = rows.filter(r=>!r.lat);
+  document.getElementById('mapSub').textContent = `Dia ${dia} · ${rows.length} OS · ${comCoord.length} com coordenada`;
+  document.getElementById('missingList').innerHTML = semCoord.length
+    ? `<b>${semCoord.length} OS sem coordenada</b> — peça o ponto pra equipe e cole na aba Campo (botão 📍 Colar ponto)`
+    : `Todas as OS dessa rota já têm coordenada.`;
+
+  document.getElementById('mapOverlay').classList.remove('hidden');
+
+  setTimeout(()=>{
+    if(routeMapInstance){ routeMapInstance.remove(); routeMapInstance = null; }
+    const center = comCoord.length ? [comCoord[0].lat, comCoord[0].lng] : [-7.21,-39.31];
+    routeMapInstance = L.map('routeMap').setView(center, 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom:18
+    }).addTo(routeMapInstance);
+
+    const latlngs = [];
+    comCoord.forEach(d=>{
+      const icon = L.divIcon({ className:'', html:`<div class="pin-num"><span>${d.ordem}</span></div>`, iconSize:[26,26], iconAnchor:[13,26] });
+      L.marker([d.lat,d.lng], {icon}).addTo(routeMapInstance)
+        .bindPopup(`<b>#${d.ordem} · OS ${d.os}</b><br>${d.nome}<br>${d.endereco}<br>${d.tipo}`);
+      latlngs.push([d.lat,d.lng]);
+    });
+    if(latlngs.length > 1){
+      L.polyline(latlngs, { color:'#e8983a', weight:3, dashArray:'6,6' }).addTo(routeMapInstance);
+      routeMapInstance.fitBounds(latlngs, { padding:[30,30] });
+    }
+  }, 50);
+}
+
+function closeMapModal(){
+  document.getElementById('mapOverlay').classList.add('hidden');
+}
+
+let pontoAlvo = null; // {reg, id}
+
+function abrirModalPonto(reg, id){
+  const row = campoData[reg].find(r=>r.id===id);
+  pontoAlvo = { reg, id };
+  document.getElementById('pontoSub').textContent = `OS ${row.os} · UC ${row.uc} · ${row.nome}`;
+  document.getElementById('pontoInput').value = '';
+  document.getElementById('pontoErro').style.display = 'none';
+  document.getElementById('pontoOverlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('pontoInput').focus(), 50);
+}
+function closePontoModal(){
+  document.getElementById('pontoOverlay').classList.add('hidden');
+  pontoAlvo = null;
+}
+
+// Aceita: "-7.2133, -39.3153" / "-7.2133 -39.3153" /
+// links do Google Maps com "@lat,lng" ou "q=lat,lng" / links curtos maps.app.goo.gl (sem coordenada extraível — orienta a abrir e copiar)
+function parseCoordString(texto){
+  const t = texto.trim();
+
+  // link com @lat,lng
+  let m = t.match(/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  if(m) return [parseFloat(m[1]), parseFloat(m[2])];
+
+  // link com q= ou query=
+  m = t.match(/[?&](?:q|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  if(m) return [parseFloat(m[1]), parseFloat(m[2])];
+
+  // coordenada solta "lat, lng" ou "lat lng"
+  m = t.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+  if(m){
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if(Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return [lat,lng];
+  }
+  return null;
+}
+
+function confirmPonto(){
+  const texto = document.getElementById('pontoInput').value;
+  const coord = parseCoordString(texto);
+  const erroEl = document.getElementById('pontoErro');
+  if(!coord){
+    erroEl.textContent = 'Não consegui entender esse formato. Peça pra equipe mandar as coordenadas (ex: -7.21, -39.31) ou o link completo do Google Maps com "@lat,lng".';
+    erroEl.style.display = 'block';
+    return;
+  }
+  const { reg, id } = pontoAlvo;
+  const row = campoData[reg].find(r=>r.id===id);
+  row.lat = coord[0]; row.lng = coord[1];
+  closePontoModal();
+  showToast(`✓ Ponto salvo pra OS ${row.os} (UC ${row.uc}) — já disponível pras próximas vezes`);
+  render();
+  if(MODO_REAL){
+    apiPost('colarPonto', { uc: row.uc, lat: coord[0], lng: coord[1] })
+      .catch(err=>showToast('Erro ao gravar ponto na planilha: '+err.message));
+  }
+}
+
+function generateHtmlRoute(){
+  const reg = state.tab;
+  const sel = document.getElementById('fGrupo').value;
+  if(!sel){ showToast('Selecione um dia + equipe primeiro'); return; }
+  const [dia,equipe] = sel.split('||');
+  const rows = campoData[reg].filter(r=>r.dia===dia && r.equipe===equipe).sort((a,b)=>a.ordem-b.ordem);
+  if(!rows.length) return;
+  const regLabel = reg==='sul' ? 'SUL' : 'C.SUL';
+  const comCoord = rows.filter(r=>r.lat).length;
+
+  const cards = rows.map(d=>{
+    const mapsUrl = d.lat ? `https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}` : null;
+    return `
+    <div class="stop ${mapsUrl?'has-map':''}" ${mapsUrl?`onclick="window.open('${mapsUrl}','_blank')"`:''}>
+      <div class="stop-num">${d.ordem}</div>
+      <div class="stop-body">
+        <div class="stop-top">
+          <span class="stop-os">OS ${d.os}</span>
+          <span class="anx-tag anx-${d.anx.toLowerCase()}">${d.anx}</span>
+        </div>
+        <div class="stop-tipo">${d.tipo}</div>
+        <div class="stop-nome">${d.nome}</div>
+        <div class="stop-end">${d.endereco} — ${d.municipio}</div>
+        <div class="stop-prazo">Prazo: ${fmtDate(d.prazo)}</div>
+        ${mapsUrl
+          ? `<div class="stop-map-btn">📍 Abrir no Maps para navegar</div>`
+          : `<div class="stop-no-map">Sem coordenada cadastrada — confirmar endereço com a equipe</div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rota ${dia} - Equipe ${equipe}</title>
+  <style>
+    *{box-sizing:border-box;}
+    body{ font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#14171a; color:#edeef0; margin:0; padding:16px 14px 40px; }
+    h1{ font-size:19px; margin:4px 0 2px; }
+    .sub{ font-size:12.5px; color:#8b939b; margin-bottom:16px; }
+    .stop{ background:#1c2024; border:1px solid #2b3036; border-radius:12px; padding:14px; margin-bottom:10px; display:flex; gap:12px; }
+    .stop.has-map{ cursor:pointer; }
+    .stop.has-map:active{ background:#22262b; }
+    .stop-num{ width:30px; height:30px; border-radius:50%; background:#e8983a; color:#1a1206; font-weight:700;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+    .stop-body{ flex:1; min-width:0; }
+    .stop-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .stop-os{ font-family:monospace; font-size:12.5px; color:#8b939b; }
+    .anx-tag{ font-family:monospace; font-weight:700; font-size:11px; padding:2px 7px; border-radius:5px; }
+    .anx-a{ background:#3a1e1f; color:#ff5257; } .anx-n{ background:#16302a; color:#3ed492; } .anx-x{ background:#3a2c16; color:#f0ac3f; }
+    .stop-tipo{ font-size:13.5px; font-weight:600; margin-bottom:2px; }
+    .stop-nome{ font-size:13px; color:#c7cbd1; }
+    .stop-end{ font-size:12.5px; color:#8b939b; margin-top:2px; }
+    .stop-prazo{ font-size:11.5px; color:#5c636b; margin-top:4px; }
+    .stop-map-btn{ margin-top:8px; font-size:12.5px; color:#e8983a; font-weight:600; }
+    .stop-no-map{ margin-top:8px; font-size:11.5px; color:#f0ac3f; }
+    footer{ text-align:center; font-size:10.5px; color:#5c636b; margin-top:20px; }
+  </style></head><body>
+    <h1>Rota — Equipe ${equipe}</h1>
+    <div class="sub">Região ${regLabel} · Dia ${dia} · ${rows.length} OS · ${comCoord} com localização</div>
+    ${cards}
+    <footer>Toque num card com localização pra abrir o Maps e navegar até o endereço.<br>Painel DESUL Sul</footer>
+  </body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rota_${dia.replace('/','-')}_${equipe}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ HTML da rota baixado — pode mandar pro celular da equipe`);
+}
+
+function moverParaHistorico(reg, id){
+  const idx = campoData[reg].findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  const row = campoData[reg][idx];
+  campoData[reg].splice(idx,1);
+  historico.push({ ...row, origem: reg, arquivadoEm: new Date().toISOString() });
+  showToast(`📦 OS ${row.os} movida pro Histórico`);
+  render();
+  if(MODO_REAL){
+    apiPost('moverParaHistorico', { regiao:reg, os:row.os })
+      .catch(err=>showToast('Erro ao arquivar na planilha: '+err.message));
+  }
+}
+
+function restaurar(id){
+  const idx = historico.findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  const row = historico[idx];
+  historico.splice(idx,1);
+  const { origem, arquivadoEm, ...rest } = row;
+  campoData[origem].push(rest);
+  showToast(`↩ OS ${row.os} restaurada pro Campo · ${origem==='sul'?'Sul':'C.Sul'}`);
+  render();
+  if(MODO_REAL){
+    apiPost('restaurar', { os: row.os })
+      .catch(err=>showToast('Erro ao restaurar na planilha: '+err.message));
+  }
+}
+
+function toggleFeito(reg,id){
+  const row = campoData[reg].find(r=>r.id===id);
+  row.feito = !row.feito;
+  render();
+  if(MODO_REAL){
+    apiPost('marcarFeito', { regiao:reg, os:row.os })
+      .catch(err=>showToast('Erro ao marcar feito na planilha: '+err.message));
+  }
+}
+
+function toggleSelect(id){
+  if(state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+  render();
+}
+function clearSelection(){ state.selected.clear(); render(); }
+
+/* ============ MODAL / LANÇAR PRA CAMPO ============ */
+function openModal(){
+  document.getElementById('modalSub').textContent = `${state.selected.size} OS selecionadas serão enviadas.`;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.add('hidden'); }
+function confirmLaunch(){
+  const dia = document.getElementById('mDia').value.trim() || '--';
+  const equipe = document.getElementById('mEquipe').value.trim() || '--';
+
+  if(MODO_REAL){
+    // agrupa por região, já que a API lança por região de cada vez
+    const idsSelecionados = [...state.selected];
+    const porRegiao = { sul: [], csul: [] };
+    idsSelecionados.forEach(id=>{
+      const d = ajusteData.find(x=>x.id===id);
+      if(d) porRegiao[d.regiao].push(d.os);
+    });
+    closeModal();
+    Promise.all(Object.entries(porRegiao)
+      .filter(([reg,osList])=>osList.length)
+      .map(([reg,osList])=>apiPost('lancar', { regiao:reg, dia, equipe, osList }))
+    ).then(()=>{
+      state.selected.clear();
+      showToast(`✓ OS lançadas pra campo (Dia ${dia} · Equipe ${equipe})`);
+      carregarDadosReais();
+    }).catch(err=>showToast('Erro ao lançar pra campo: '+err.message));
+    return;
+  }
+
+  let count = 0;
+  [...state.selected].forEach(id=>{
+    const idx = ajusteData.findIndex(d=>d.id===id);
+    if(idx===-1) return;
+    const d = ajusteData[idx];
+    const grupoAtual = campoData[d.regiao].filter(r=>r.dia===dia && r.equipe===equipe);
+    const ordem = grupoAtual.length ? Math.max(...grupoAtual.map(r=>r.ordem))+1 : 1;
+    campoData[d.regiao].push({ id:d.id, dia, equipe, uc:d.uc, os:d.os, tipo:d.tipo, nome:d.nome,
+      endereco:d.endereco, prazo:d.prazo, municipio:d.municipio, anx:d.anx, feito:false, ordem });
+    ajusteData.splice(idx,1);
+    count++;
+  });
+  state.selected.clear();
+  closeModal();
+  updateGauges();
+  render();
+  showToast(`✓ ${count} OS lançadas pra campo (Dia ${dia} · Equipe ${equipe})`);
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ============ EVENTS ============ */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    state.tab = tab.dataset.tab;
+    document.getElementById('filterBar').classList.toggle('hidden', state.tab==='sul' || state.tab==='csul');
+    document.getElementById('campoBar').classList.toggle('hidden', state.tab!=='sul' && state.tab!=='csul');
+    render();
+  });
+});
+document.getElementById('fMunicipio').addEventListener('change', e=>{ state.municipio = e.target.value; render(); });
+document.getElementById('fTipo').addEventListener('change', e=>{ state.tipo = e.target.value; render(); });
+document.getElementById('fBusca').addEventListener('input', e=>{ state.busca = e.target.value; render(); });
+
+async function carregarDadosReais(){
+  try{
+    const [ajuste, sul, csul, hist] = await Promise.all([
+      apiGet('ajuste'), apiGet('campo', {regiao:'sul'}), apiGet('campo', {regiao:'csul'}), apiGet('historico')
+    ]);
+    ajusteData = ajuste.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
+    campoData.sul  = sul.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
+    campoData.csul = csul.map(d => ({ ...d, prazo: parseISODate(d.prazo) }));
+    historico = hist; // arquivadoEm já vem como string, ok pra exibir
+    populateFilters();
+    updateGauges();
+    render();
+    showToast('✓ Conectado à planilha — dados reais carregados');
+  } catch(err){
+    showToast('Erro ao carregar da planilha: ' + err.message);
+    console.error(err);
+  }
+}
+
+if(MODO_REAL){
+  document.querySelector('.proto-tag').textContent = 'conectado à planilha';
+  ajusteData = []; campoData = {sul:[],csul:[]}; historico = [];
+  populateFilters();
+  updateGauges();
+  render();
+  carregarDadosReais();
+} else {
+  populateFilters();
+  seedHistorico();
+  updateGauges();
+  render();
+}
+</script>
+</body>
+</html>
