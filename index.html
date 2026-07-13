@@ -74,6 +74,7 @@
   .dot{ width:7px; height:7px; border-radius:2px; display:inline-block; }
 
   /* ---------- TABS ---------- */
+  .import-bar{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
   .tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; }
   .tab{
     padding:9px 16px; font-size:13px; font-weight:500; color: var(--text-muted);
@@ -285,6 +286,13 @@
         <span><i class="dot" style="background:var(--a-green)"></i>No prazo</span>
       </div>
     </div>
+  </div>
+
+  <!-- IMPORTAR CSV -->
+  <div class="import-bar">
+    <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCsvImport(event)">
+    <button class="btn ghost" onclick="document.getElementById('csvInput').click()" id="importBtn">📤 Importar CSV do RASCUNHO</button>
+    <span id="importStatus" style="font-size:11.5px; color: var(--text-dim);"></span>
   </div>
 
   <div class="tabs">
@@ -1069,6 +1077,41 @@ document.querySelectorAll('.tab').forEach(tab=>{
 document.getElementById('fMunicipio').addEventListener('change', e=>{ state.municipio = e.target.value; render(); });
 document.getElementById('fTipo').addEventListener('change', e=>{ state.tipo = e.target.value; render(); });
 document.getElementById('fBusca').addEventListener('input', e=>{ state.busca = e.target.value; render(); });
+
+function handleCsvImport(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('importStatus');
+  const btn = document.getElementById('importBtn');
+
+  if(!MODO_REAL){
+    statusEl.textContent = 'Importação só funciona conectado à planilha (modo demonstração não grava nada).';
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const csvTexto = reader.result;
+    btn.disabled = true;
+    btn.textContent = '⏳ Importando…';
+    statusEl.textContent = 'Enviando e filtrando (pode levar alguns segundos com base grande)…';
+    try{
+      const resultado = await apiPost('importarRascunho', { csv: csvTexto });
+      statusEl.textContent = `✓ ${resultado.linhas} linhas importadas pro RASCUNHO — Ajuste recalculado.`;
+      showToast('✓ CSV importado e Ajuste de Ingressadas atualizado');
+      await carregarDadosReais();
+    } catch(err){
+      statusEl.textContent = 'Erro ao importar: ' + err.message;
+      showToast('Erro ao importar CSV: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📤 Importar CSV do RASCUNHO';
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
 
 async function carregarDadosReais(){
   try{
