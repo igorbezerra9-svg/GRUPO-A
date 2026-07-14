@@ -444,7 +444,7 @@ function calcAnx(prazo){
   if(dias <= 5) return 'X';
   return 'N';
 }
-function fmtDate(d){ return d.toLocaleDateString('pt-BR'); }
+function fmtDate(d){ return (d instanceof Date && !isNaN(d)) ? d.toLocaleDateString('pt-BR') : '—'; }
 // Corrige DIA que o Google Sheets converteu sozinho pra timestamp (ex: "2026-07-23T03:00:00.000Z")
 function formatDia(dia){
   if(!dia) return dia;
