@@ -69,7 +69,8 @@
   .gauge-label{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13px; letter-spacing:.02em; }
   .gauge-total{ font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--text-muted); }
   .gauge-bar{ height:10px; border-radius:5px; overflow:hidden; display:flex; background: var(--line-soft); }
-  .gauge-seg{ height:100%; transition: width .3s ease; }
+  .gauge-seg{ height:100%; transition: width .3s ease; cursor:pointer; }
+  .gauge-seg:hover{ filter: brightness(1.2); }
   .gauge-legend{ display:flex; gap:16px; margin-top:9px; font-size:11px; color: var(--text-muted); }
   .gauge-legend span{ display:inline-flex; align-items:center; gap:5px; }
   .dot{ width:7px; height:7px; border-radius:2px; display:inline-block; }
@@ -103,6 +104,11 @@
   .chip.on-a{ border-color: var(--a-red); color: var(--a-red); background: var(--a-red-bg); }
   .chip.on-n{ border-color: var(--a-green); color: var(--a-green); background: var(--a-green-bg); }
   .chip.on-x{ border-color: var(--a-amber); color: var(--a-amber); background: var(--a-amber-bg); }
+  #regiaoFiltroTag{
+    display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:20px;
+    border:1px solid var(--accent); color: var(--accent); background: var(--accent-dim);
+    font-size:11.5px; cursor:pointer; font-family:'IBM Plex Mono', monospace;
+  }
 
   /* ---------- TABLE ---------- */
   .table-wrap{
@@ -308,10 +314,11 @@
     <select id="fMunicipio"><option value="">Município (todos)</option></select>
     <select id="fTipo"><option value="">Tipo de serviço (todos)</option></select>
     <input type="text" id="fBusca" placeholder="Buscar OS, UC ou nome…">
+    <span id="regiaoFiltroTag" class="hidden"></span>
     <div class="chip-filters">
-      <div class="chip" data-anx="A" onclick="toggleChip(this)">A</div>
-      <div class="chip" data-anx="X" onclick="toggleChip(this)">X</div>
-      <div class="chip" data-anx="N" onclick="toggleChip(this)">N</div>
+      <div class="chip" data-anx="A" onclick="toggleChip(this)">🔴 Atrasada</div>
+      <div class="chip" data-anx="X" onclick="toggleChip(this)">🟡 Atenção</div>
+      <div class="chip" data-anx="N" onclick="toggleChip(this)">🟢 No prazo</div>
     </div>
   </div>
 
@@ -537,7 +544,7 @@ function jitterCoord(base){ return [base[0] + (Math.random()-0.5)*0.05, base[1] 
   });
 })();
 
-let state = { tab:'ajuste', anxFilter:new Set(), municipio:'', tipo:'', busca:'', selected:new Set() };
+let state = { tab:'ajuste', anxFilter:new Set(), municipio:'', tipo:'', busca:'', regiaoGauge:'', selected:new Set() };
 
 /* ============ RENDER ============ */
 function populateFilters(){
@@ -569,11 +576,37 @@ function updateGauges(){
     const total = rows.length || 1;
     const bar = document.getElementById(reg==='sul'?'gaugeSul':'gaugeCsul');
     bar.innerHTML = `
-      <div class="gauge-seg" style="width:${a/total*100}%;background:var(--a-red)"></div>
-      <div class="gauge-seg" style="width:${x/total*100}%;background:var(--a-amber)"></div>
-      <div class="gauge-seg" style="width:${n/total*100}%;background:var(--a-green)"></div>`;
+      <div class="gauge-seg" style="width:${a/total*100}%;background:var(--a-red)" onclick="filtrarPorAnxNoGauge('${reg}','A')" title="Ver ${a} atrasada(s) em ${reg==='sul'?'Sul':'C.Sul'}"></div>
+      <div class="gauge-seg" style="width:${x/total*100}%;background:var(--a-amber)" onclick="filtrarPorAnxNoGauge('${reg}','X')" title="Ver ${x} em atenção em ${reg==='sul'?'Sul':'C.Sul'}"></div>
+      <div class="gauge-seg" style="width:${n/total*100}%;background:var(--a-green)" onclick="filtrarPorAnxNoGauge('${reg}','N')" title="Ver ${n} no prazo em ${reg==='sul'?'Sul':'C.Sul'}"></div>`;
     document.getElementById(reg==='sul'?'gaugeTotalSul':'gaugeTotalCsul').textContent = `${rows.length} OS`;
   });
+}
+
+// Clica num pedaço da barra de Carga → vai pra aba Ajuste já filtrado por região + status
+function filtrarPorAnxNoGauge(regiao, anx){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.tab[data-tab="ajuste"]').classList.add('active');
+  state.tab = 'ajuste';
+  document.getElementById('filterBar').classList.remove('hidden');
+  document.getElementById('campoBar').classList.add('hidden');
+
+  state.anxFilter = new Set([anx]);
+  document.querySelectorAll('.chip').forEach(c=>{
+    c.classList.remove('on-a','on-n','on-x');
+    if(c.dataset.anx === anx) c.classList.add('on-' + anx.toLowerCase());
+  });
+
+  state.municipio = '';
+  document.getElementById('fMunicipio').value = '';
+  state.regiaoGauge = regiao;
+
+  render();
+}
+
+function limparFiltroRegiao(){
+  state.regiaoGauge = '';
+  render();
 }
 
 function filteredGeneric(list){
@@ -581,6 +614,7 @@ function filteredGeneric(list){
     if(state.municipio && d.municipio !== state.municipio) return false;
     if(state.tipo && d.tipo !== state.tipo) return false;
     if(state.anxFilter.size && !state.anxFilter.has(d.anx)) return false;
+    if(state.regiaoGauge && d.regiao !== state.regiaoGauge) return false;
     if(state.busca){
       const q = state.busca.toLowerCase();
       if(!(String(d.os).includes(q) || String(d.uc).includes(q) || d.nome.toLowerCase().includes(q))) return false;
@@ -615,6 +649,14 @@ function render(){
     empty.style.display = rows.length ? 'none':'block';
     document.getElementById('actionBar').classList.toggle('hidden', state.selected.size===0);
     document.getElementById('selCount').textContent = state.selected.size;
+    const tag = document.getElementById('regiaoFiltroTag');
+    if(state.regiaoGauge){
+      tag.classList.remove('hidden');
+      tag.textContent = `Região: ${state.regiaoGauge==='sul'?'Sul':'C.Sul'} ✕`;
+      tag.onclick = limparFiltroRegiao;
+    } else {
+      tag.classList.add('hidden');
+    }
   } else if(state.tab==='historico'){
     const rows = filteredGeneric(historico).sort((a,b)=> new Date(b.arquivadoEm) - new Date(a.arquivadoEm));
     head.innerHTML = `<tr>
