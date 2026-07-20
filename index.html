@@ -244,6 +244,12 @@
   .gps-btn:hover{ border-color: var(--accent); background: var(--accent-dim); }
   .gps-btn.loading{ color: var(--text-dim); border-color: var(--text-dim); cursor:wait; }
   .acao-cell{ display:flex; align-items:center; gap:8px; }
+  .obs-input{
+    width:100%; min-width:140px; background: var(--surface-2); border:1px solid var(--line);
+    color: var(--text); padding:5px 7px; border-radius:6px; font-size:11.5px; font-family:'Inter', sans-serif;
+  }
+  .obs-input:focus{ border-color: var(--accent); outline:none; }
+  .obs-input::placeholder{ color: var(--text-dim); }
   .arquivar-btn{
     background: var(--surface-2); border:1px solid var(--line); color: var(--text-muted);
     width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:13px;
@@ -790,7 +796,7 @@ function render(){
     const rows = [...campoData[reg]].sort((a,b)=>(a.dia+a.equipe).localeCompare(b.dia+b.equipe) || a.ordem-b.ordem);
     head.innerHTML = `<tr>
       <th style="width:56px;">Rota</th><th>Dia</th><th>Equipe</th><th>UC</th><th>OS</th><th>Ordem</th><th>Nome</th>
-      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Coordenadas</th><th style="width:160px;">Ação</th></tr>`;
+      <th>Endereço</th><th>Prazo</th><th>Localidade</th><th style="width:40px;">A/N/X</th><th>Coordenadas</th><th style="width:160px;">Observação</th><th style="width:160px;">Ação</th></tr>`;
     body.innerHTML = rows.length ? rows.map(d=>`
       <tr>
         <td class="order-cell">
@@ -812,6 +818,10 @@ function render(){
         <td>${badgeHtml(d.anx)}</td>
         <td>${d.lat ? `<span class="mono" style="color:var(--a-green)">${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</span>` :
               `<button class="gps-btn" onclick="abrirModalPonto('${reg}','${d.id}')">📍 Colar ponto</button>`}</td>
+        <td>
+          <input type="text" class="obs-input" value="${(d.observacao||'').replace(/"/g,'&quot;')}"
+                 placeholder="Escreva aqui…" onchange="salvarObservacao('${reg}','${d.id}', this.value)">
+        </td>
         <td>
           <div class="acao-cell">
             <span class="feito-toggle ${d.feito?'done':''}" onclick="toggleFeito('${reg}','${d.id}')" title="Marcar feito"></span>
@@ -892,7 +902,7 @@ function generatePdf(){
     <div class="sub">Região ${regLabel} · Dia ${dia} · ${rows.length} ordens de serviço</div>
     <table>
       <thead><tr><th class="num">#</th><th class="chk">✓</th><th>OS</th><th>UC</th><th>Tipo de Serviço</th>
-      <th>Cliente</th><th>Endereço</th><th>Prazo</th><th>A/N/X</th><th>Mapa</th></tr></thead>
+      <th>Cliente</th><th>Endereço</th><th>Prazo</th><th>A/N/X</th><th>Coordenadas</th><th>Observação</th></tr></thead>
       <tbody>
         ${rows.map((d,i)=>`<tr>
           <td class="num">${i+1}</td>
@@ -904,7 +914,8 @@ function generatePdf(){
           <td>${d.endereco}</td>
           <td>${fmtDate(d.prazo)}</td>
           <td class="anx">${d.anx}</td>
-          <td>${d.lat ? `<a href="https://maps.google.com/?q=${d.lat},${d.lng}">abrir</a>` : '—'}</td>
+          <td>${d.lat ? `${d.lat.toFixed(6)}, ${d.lng.toFixed(6)}` : '—'}</td>
+          <td>${d.observacao || ''}</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -1137,6 +1148,17 @@ function restaurar(id){
   if(MODO_REAL){
     apiPost('restaurar', { os: row.os })
       .catch(err=>showToast('Erro ao restaurar na planilha: '+err.message));
+  }
+}
+
+function salvarObservacao(reg, id, texto){
+  const row = campoData[reg].find(r=>r.id===id);
+  if(!row) return;
+  row.observacao = texto;
+  showToast('✓ Observação salva');
+  if(MODO_REAL){
+    apiPost('salvarObservacao', { regiao:reg, os:row.os, observacao:texto })
+      .catch(err=>showToast('Erro ao salvar observação: '+err.message));
   }
 }
 
