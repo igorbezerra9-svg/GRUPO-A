@@ -109,6 +109,33 @@
     border:1px solid var(--accent); color: var(--accent); background: var(--accent-dim);
     font-size:11.5px; cursor:pointer; font-family:'IBM Plex Mono', monospace;
   }
+  .multiselect{ position:relative; }
+  .ms-btn{
+    background: var(--surface); border:1px solid var(--line); color: var(--text);
+    padding:7px 10px; border-radius:7px; font-size:12.5px; font-family:'Inter', sans-serif;
+    cursor:pointer; white-space:nowrap;
+  }
+  .ms-btn:hover{ border-color: var(--accent); }
+  .ms-btn.active{ border-color: var(--accent); color: var(--accent); }
+  .ms-panel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:30;
+    background: var(--surface-2); border:1px solid var(--line); border-radius:9px;
+    padding:8px; min-width:240px; max-height:280px; overflow-y:auto;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  }
+  .ms-panel.hidden{ display:none; }
+  .ms-actions{
+    display:flex; justify-content:space-between; font-size:10.5px; color: var(--accent);
+    margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--line);
+  }
+  .ms-actions span{ cursor:pointer; }
+  .ms-actions span:hover{ text-decoration:underline; }
+  .ms-option{
+    display:flex; align-items:center; gap:7px; padding:5px 4px; font-size:12.5px;
+    cursor:pointer; border-radius:5px; color: var(--text);
+  }
+  .ms-option:hover{ background: var(--surface); }
+  .ms-option input{ cursor:pointer; accent-color: var(--accent); }
 
   /* ---------- TABLE ---------- */
   .table-wrap{
@@ -311,8 +338,26 @@
 
   <!-- FILTERS -->
   <div class="filters" id="filterBar">
-    <select id="fMunicipio"><option value="">Município (todos)</option></select>
-    <select id="fTipo"><option value="">Tipo de serviço (todos)</option></select>
+    <div class="multiselect" id="msMunicipio">
+      <button class="ms-btn" onclick="toggleMsPanel('municipio')" id="msBtnMunicipio">Município (todos) ▾</button>
+      <div class="ms-panel hidden" id="msPanelMunicipio">
+        <div class="ms-actions">
+          <span onclick="msSelectAll('municipio')">Selecionar todos</span>
+          <span onclick="msClear('municipio')">Limpar</span>
+        </div>
+        <div class="ms-options" id="msOptionsMunicipio"></div>
+      </div>
+    </div>
+    <div class="multiselect" id="msTipo">
+      <button class="ms-btn" onclick="toggleMsPanel('tipo')" id="msBtnTipo">Tipo de serviço (todos) ▾</button>
+      <div class="ms-panel hidden" id="msPanelTipo">
+        <div class="ms-actions">
+          <span onclick="msSelectAll('tipo')">Selecionar todos</span>
+          <span onclick="msClear('tipo')">Limpar</span>
+        </div>
+        <div class="ms-options" id="msOptionsTipo"></div>
+      </div>
+    </div>
     <input type="text" id="fBusca" placeholder="Buscar OS, UC ou nome…">
     <span id="regiaoFiltroTag" class="hidden"></span>
     <div class="chip-filters">
@@ -544,16 +589,76 @@ function jitterCoord(base){ return [base[0] + (Math.random()-0.5)*0.05, base[1] 
   });
 })();
 
-let state = { tab:'ajuste', anxFilter:new Set(), municipio:'', tipo:'', busca:'', regiaoGauge:'', selected:new Set() };
+let state = { tab:'ajuste', anxFilter:new Set(), municipio:new Set(), tipo:new Set(), busca:'', regiaoGauge:'', selected:new Set() };
 
 /* ============ RENDER ============ */
 function populateFilters(){
-  const munSel = document.getElementById('fMunicipio');
-  const tipoSel = document.getElementById('fTipo');
-  const muns = [...new Set(ajusteData.map(d=>d.municipio))].sort();
-  muns.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; munSel.appendChild(o); });
-  TIPOS.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; tipoSel.appendChild(o); });
+  const muns = [...new Set(ajusteData.map(d=>d.municipio).filter(Boolean))].sort();
+  const tipos = [...new Set(ajusteData.map(d=>d.tipo).filter(Boolean))].sort();
+  renderMsOptions('municipio', muns);
+  renderMsOptions('tipo', tipos);
+  updateMsButtonLabel('municipio');
+  updateMsButtonLabel('tipo');
 }
+
+function renderMsOptions(kind, options){
+  const container = document.getElementById(kind==='municipio' ? 'msOptionsMunicipio' : 'msOptionsTipo');
+  const selecionados = state[kind]; // Set
+  container.innerHTML = options.map(opt => `
+    <label class="ms-option">
+      <input type="checkbox" value="${opt.replace(/"/g,'&quot;')}" ${selecionados.has(opt)?'checked':''} onchange="msToggleOption('${kind}', this)">
+      <span>${opt}</span>
+    </label>`).join('') || '<div style="font-size:11.5px;color:var(--text-dim);padding:6px;">Nenhuma opção disponível ainda.</div>';
+}
+
+function msToggleOption(kind, checkbox){
+  if(checkbox.checked) state[kind].add(checkbox.value);
+  else state[kind].delete(checkbox.value);
+  updateMsButtonLabel(kind);
+  render();
+}
+
+function msSelectAll(kind){
+  const container = document.getElementById(kind==='municipio' ? 'msOptionsMunicipio' : 'msOptionsTipo');
+  container.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.checked = true;
+    state[kind].add(cb.value);
+  });
+  updateMsButtonLabel(kind);
+  render();
+}
+
+function msClear(kind){
+  state[kind].clear();
+  const container = document.getElementById(kind==='municipio' ? 'msOptionsMunicipio' : 'msOptionsTipo');
+  container.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked = false);
+  updateMsButtonLabel(kind);
+  render();
+}
+
+function updateMsButtonLabel(kind){
+  const btn = document.getElementById(kind==='municipio' ? 'msBtnMunicipio' : 'msBtnTipo');
+  const rotulo = kind==='municipio' ? 'Município' : 'Tipo de serviço';
+  const sel = state[kind];
+  if(sel.size === 0){ btn.textContent = `${rotulo} (todos) ▾`; btn.classList.remove('active'); }
+  else if(sel.size === 1){ btn.textContent = `${[...sel][0]} ▾`; btn.classList.add('active'); }
+  else { btn.textContent = `${rotulo} (${sel.size} selecionados) ▾`; btn.classList.add('active'); }
+}
+
+function toggleMsPanel(kind){
+  const idAlvo = kind==='municipio' ? 'msPanelMunicipio' : 'msPanelTipo';
+  const idOutro = kind==='municipio' ? 'msPanelTipo' : 'msPanelMunicipio';
+  document.getElementById(idOutro).classList.add('hidden');
+  document.getElementById(idAlvo).classList.toggle('hidden');
+}
+
+// Fecha os painéis ao clicar fora deles
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.multiselect')){
+    document.getElementById('msPanelMunicipio')?.classList.add('hidden');
+    document.getElementById('msPanelTipo')?.classList.add('hidden');
+  }
+});
 
 function toggleChip(el){
   const v = el.dataset.anx;
@@ -597,8 +702,8 @@ function filtrarPorAnxNoGauge(regiao, anx){
     if(c.dataset.anx === anx) c.classList.add('on-' + anx.toLowerCase());
   });
 
-  state.municipio = '';
-  document.getElementById('fMunicipio').value = '';
+  state.municipio = new Set();
+  msClear('municipio');
   state.regiaoGauge = regiao;
 
   render();
@@ -611,8 +716,8 @@ function limparFiltroRegiao(){
 
 function filteredGeneric(list){
   return list.filter(d=>{
-    if(state.municipio && d.municipio !== state.municipio) return false;
-    if(state.tipo && d.tipo !== state.tipo) return false;
+    if(state.municipio.size && !state.municipio.has(d.municipio)) return false;
+    if(state.tipo.size && !state.tipo.has(d.tipo)) return false;
     if(state.anxFilter.size && !state.anxFilter.has(d.anx)) return false;
     if(state.regiaoGauge && d.regiao !== state.regiaoGauge) return false;
     if(state.busca){
@@ -1117,8 +1222,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     render();
   });
 });
-document.getElementById('fMunicipio').addEventListener('change', e=>{ state.municipio = e.target.value; render(); });
-document.getElementById('fTipo').addEventListener('change', e=>{ state.tipo = e.target.value; render(); });
+// Filtros de município/tipo agora são multi-seleção — ver msToggleOption()
 document.getElementById('fBusca').addEventListener('input', e=>{ state.busca = e.target.value; render(); });
 
 function handleCsvImport(event){
